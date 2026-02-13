@@ -33,7 +33,7 @@ jobs:
 
       - name: bootstrap current_workflow_version array values to file
         run: |
-          until curl -sLf "https://github.com/userdocs/qbt-workflow-files/releases/latest/download/dependency-version.json" > current_workflow_version.json; do
+          until curl -sLf "https://github.com/likecyber/qbt-workflow-files/releases/latest/download/dependency-version.json" > current_workflow_version.json; do
               echo "waiting for URL."
               sleep 2
           done

@@ -3,11 +3,6 @@ name: ci - main reusable caller
 on:
   workflow_dispatch:
     inputs:
-      use_test_repo:
-        description: "Use qbittorrent-nox-test repo?"
-        required: true
-        default: false
-        type: boolean
       force_build:
         description: "Override version check and force build?"
         required: true
@@ -62,8 +57,8 @@ jobs:
     needs: [skip_duplicate_job]
     runs-on: ubuntu-24.04-arm
     outputs:
-      use_test_repo: ${{ github.event.inputs.use_test_repo == 'true' && 'qbittorrent-nox-static-test' || 'qbittorrent-nox-static' }}
-      test_repo_branch: ${{ github.event.inputs.use_test_repo == 'true' && 'main' || 'master' }}
+      use_repo: 'qbittorrent-ut-nox-static'
+      repo_branch: 'master'
       force_build: ${{ github.event.inputs.force_build || 'false' }}
       workflow_files_release_only: ${{ github.event.inputs.workflow_files_release_only || 'false' }}
       skip_workflow_files_release: ${{ github.event.inputs.skip_workflow_files_release || 'false' }}
@@ -79,8 +74,8 @@ jobs:
     needs: [skip_duplicate_job, scheduled_defaults]
     runs-on: ubuntu-24.04-arm
     env:
-      use_test_repo: ${{ needs.scheduled_defaults.outputs.use_test_repo }}
-      test_repo_branch: ${{ needs.scheduled_defaults.outputs.test_repo_branch }}
+      use_repo: ${{ needs.scheduled_defaults.outputs.use_repo }}
+      repo_branch: ${{ needs.scheduled_defaults.outputs.repo_branch }}
       force_build: ${{ needs.scheduled_defaults.outputs.force_build }}
       workflow_files_release_only: ${{ needs.scheduled_defaults.outputs.workflow_files_release_only }}
       skip_workflow_files_release: ${{ needs.scheduled_defaults.outputs.skip_workflow_files_release }}
@@ -92,8 +87,8 @@ jobs:
           printf '%b\n' "# Scheduled Defaults Outputs Summary" >> $GITHUB_STEP_SUMMARY
           printf '\n%b\n' ":octocat: Here is a summary of inputs set as string outputs that are used in workflows." >> $GITHUB_STEP_SUMMARY
 
-          printf '\n%b\n' "use_test_repo: \`${use_test_repo}\`" >> $GITHUB_STEP_SUMMARY
-          printf '\n%b\n' "test_repo_branch: \`${test_repo_branch}\`" >> $GITHUB_STEP_SUMMARY
+          printf '\n%b\n' "use_repo: \`${use_repo}\`" >> $GITHUB_STEP_SUMMARY
+          printf '\n%b\n' "repo_branch: \`${repo_branch}\`" >> $GITHUB_STEP_SUMMARY
           printf '\n%b\n' "force_build: \`${force_build}\`" >> $GITHUB_STEP_SUMMARY
           printf '\n%b\n' "workflow_files_release_only: \`${workflow_files_release_only}\`" >> $GITHUB_STEP_SUMMARY
           printf '\n%b\n' "skip_workflow_files_release: \`${skip_workflow_files_release}\`" >> $GITHUB_STEP_SUMMARY
@@ -127,9 +122,6 @@ jobs:
       contents: write
       attestations: write
     uses: ./.github/workflows/ci-workflows-files-release.yml
-    secrets:
-      PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
-      PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
 
   ci-workflow-vs-current-builds:
     if: >
@@ -164,10 +156,10 @@ jobs:
         uses: codex-/return-dispatch@2277c7e64ca38a7350b95cfec2d6715ccebb7108 # v3.0.1
         id: return-dispatch-id
         with:
-          token: ${{ secrets.MYTOKEN }}
-          ref: ${{ needs.scheduled_defaults.outputs.test_repo_branch }}
-          repo: ${{ needs.scheduled_defaults.outputs.use_test_repo }}
-          owner: userdocs
+          token: ${{ secrets.PERSONAL_TOKEN }}
+          ref: ${{ needs.scheduled_defaults.outputs.repo_branch }}
+          repo: ${{ needs.scheduled_defaults.outputs.use_repo }}
+          owner: likecyber
           workflow_inputs: '{ "skip_rerun": "false", "retries": "3" }'
           workflow: ci-main-reusable-caller.yml
           workflow_timeout_seconds: 300
@@ -199,16 +191,12 @@ jobs:
         uses: Codex-/await-remote-run@a56c556e6434d2d7ec9438dc656143b39532324e # v1.13.0
         id: await_remote_build_run
         with:
-          token: ${{ secrets.MYTOKEN }}
-          repo: ${{ needs.scheduled_defaults.outputs.use_test_repo }}
-          owner: userdocs
+          token: ${{ secrets.PERSONAL_TOKEN }}
+          repo: ${{ needs.scheduled_defaults.outputs.use_repo }}
+          owner: likecyber
           run_id: ${{ needs.ci-trigger-qbittorrent-nox-build.outputs.run-id }}
           run_timeout_seconds: 7200
           poll_interval_ms: 10000
-
-      - name: Pushover notification qbt static build
-        if: steps.await_remote_build_run.outcome == 'success'
-        run: curl -4s -d message="New dependency versions have been built" -d title="qbt static has been rebuilt" -d token="${{ secrets.PUSHOVER_API_TOKEN }}" -d user="${{ secrets.PUSHOVER_USER_KEY }}" 'https://api.pushover.net/1/messages.json'
 
   ci-auto-rerun-failed-jobs:
     if: failure() && (needs.scheduled_defaults.outputs.skip_rerun || 'false') == 'false'

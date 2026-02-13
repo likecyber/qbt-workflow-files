@@ -2,11 +2,6 @@ name: ci - workflows-files-release
 
 on:
   workflow_call:
-    secrets:
-      PUSHOVER_API_TOKEN:
-        required: true
-      PUSHOVER_USER_KEY:
-        required: true
 
 jobs:
   workflows-files-release:
@@ -27,7 +22,7 @@ jobs:
           SHA: ${{ github.event.client_payload.sha }}
 
       - name: bootstrap latest release dependency-version.json
-        run: curl -sL "https://github.com/userdocs/qbt-workflow-files/releases/latest/download/dependency-version.json" -o dv.json
+        run: curl -sL "https://github.com/likecyber/qbt-workflow-files/releases/latest/download/dependency-version.json" -o dv.json
 
       - name: bootstrap
         run: |
@@ -298,25 +293,6 @@ jobs:
           }
           CURRENT_WORKFLOW_VERSION_JSON
 
-          cat >> "pushover_body.text" <<- PUSHOVER_BODY_TEXT
-
-          Here are the latest dependency versions that have been released:
-
-          glibc: ${glibc}
-          zlib: ${zlib}
-          zlib_ng: ${zlib_ng}
-          iconv: ${iconv}
-          icu: ${icu}
-          openssl: ${openssl}
-          boost: ${boost}
-          libtorrent_1_2: ${libtorrent_1_2}
-          libtorrent_2_0: ${libtorrent_2_0}
-          double_conversion: ${double_conversion}
-          qt5: ${qt5}
-          qt6: ${qt6}
-          qbittorrent: ${qbittorrent}
-          PUSHOVER_BODY_TEXT
-
       - name: Generate release asset attestation
         uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
         with:
@@ -344,9 +320,3 @@ jobs:
           bodyFile: release.md
           allowUpdates: true
           token: "${{ github.token }}"
-
-      - name: Pushover notification workflows
-        if: steps.workflow_files_release.outcome == 'success'
-        run: |
-          message="$(printf '%b\n' "New dependency versions have been released\n\n")"
-          curl -4s -d message="$(cat pushover_body.text)" -d title="qbt workflow files updated" -d token="${{ secrets.PUSHOVER_API_TOKEN }}" -d user="${{ secrets.PUSHOVER_USER_KEY }}" 'https://api.pushover.net/1/messages.json'
